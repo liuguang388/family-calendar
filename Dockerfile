@@ -1,13 +1,4 @@
-FROM node:22-slim
-
-# Install build dependencies for sqlite3 native compilation
-RUN apt-get update && apt-get install -y \
-    python3 \
-    python3-distutils \
-    make \
-    g++ \
-    --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/*
+FROM node:20-slim
 
 WORKDIR /app
 
