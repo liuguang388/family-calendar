@@ -8,20 +8,22 @@ const cors = require('cors');
 
 const app = express();
 const PORT = process.env.PORT || 3456;
+const DATA_DIR = process.env.DATA_DIR || '.';
 
 // 中间件
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
-app.use('/uploads', express.static('uploads'));
+app.use('/uploads', express.static(path.join(DATA_DIR, 'uploads')));
 
 // 确保上传目录存在
-if (!fs.existsSync('uploads')) {
-  fs.mkdirSync('uploads', { recursive: true });
+const uploadsDir = path.join(DATA_DIR, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
 // 数据库初始化
-const db = new sqlite3.Database('database.sqlite');
+const db = new sqlite3.Database(path.join(DATA_DIR, 'database.sqlite'));
 
 db.serialize(() => {
   db.run(`CREATE TABLE IF NOT EXISTS families (
@@ -62,7 +64,7 @@ db.serialize(() => {
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const type = req.body.mediaType || 'files';
-    const dir = `uploads/${type}`;
+    const dir = path.join(DATA_DIR, 'uploads', type);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     cb(null, dir);
   },
@@ -240,8 +242,9 @@ app.delete('/api/events/:id', (req, res) => {
         db.run('DELETE FROM events WHERE parent_id = ?', [row.parent_id], function(err) {
           if (err) return res.status(500).json({ error: err.message });
           // 删除关联文件（只删一次）
-          if (row.media_path && fs.existsSync(row.media_path)) {
-            fs.unlinkSync(row.media_path);
+          const mp = path.join(DATA_DIR, row.media_path);
+          if (row.media_path && fs.existsSync(mp)) {
+            fs.unlinkSync(mp);
           }
           res.json({ message: '重复事件系列已删除' });
         });
@@ -249,10 +252,10 @@ app.delete('/api/events/:id', (req, res) => {
     } else {
       db.run('DELETE FROM events WHERE id = ?', [id], function(err) {
         if (err) return res.status(500).json({ error: err.message });
-        if (row.media_path && fs.existsSync(row.media_path)) {
-          fs.unlinkSync(row.media_path);
+        const mp2 = path.join(DATA_DIR, row.media_path);
+        if (row.media_path && fs.existsSync(mp2)) {
+          fs.unlinkSync(mp2);
         }
-        res.json({ message: '事件删除成功' });
       });
     }
   });
