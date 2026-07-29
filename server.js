@@ -13,6 +13,12 @@ const DATA_DIR = process.env.DATA_DIR || '.';
 // 中间件
 app.use(cors());
 app.use(express.json());
+
+// 健康检查端点
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', uptime: process.uptime() });
+});
+
 app.use(express.static('public'));
 app.use('/uploads', express.static(path.join(DATA_DIR, 'uploads')));
 

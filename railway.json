@@ -4,6 +4,6 @@
   },
   "deploy": {
     "startCommand": "node server.js",
-    "healthcheckPath": "/"
+    "healthcheckPath": "/health"
   }
 }
