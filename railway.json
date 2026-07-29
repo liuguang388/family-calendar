@@ -1,0 +1,9 @@
+{
+  "build": {
+    "builder": "RAILPACK"
+  },
+  "deploy": {
+    "startCommand": "node server.js",
+    "healthcheckPath": "/"
+  }
+}
