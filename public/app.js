@@ -567,10 +567,375 @@ async function deleteEvent(id, deleteAll) {
 }
 
 // ===== 动漫角色提醒系统 =====
+// 提醒设置（默认值）
+let reminderSettings = {
+  animation: 'bounce',
+  ringtone: 'chime',
+  customAnimImg: null,
+  customRingUrl: null
+};
+
+// 从 localStorage 加载设置
+function loadReminderSettings() {
+  try {
+    const saved = localStorage.getItem('reminderSettings');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      reminderSettings = { ...reminderSettings, ...parsed };
+    }
+  } catch(e) {}
+}
+loadReminderSettings();
+
+function saveReminderSettings() {
+  localStorage.setItem('reminderSettings', JSON.stringify(reminderSettings));
+}
+
+// ===== 设置面板 =====
+function showSettings() {
+  const overlay = document.getElementById('settingsOverlay');
+  overlay.classList.add('show');
+  
+  // 高亮当前动画
+  document.querySelectorAll('#animGrid .anim-card').forEach(c => {
+    c.classList.toggle('active', c.dataset.anim === reminderSettings.animation);
+  });
+  
+  // 高亮当前铃声
+  document.querySelectorAll('#ringtoneList .ringtone-card').forEach(c => {
+    c.classList.toggle('active', c.dataset.ring === reminderSettings.ringtone);
+  });
+  
+  // 显示/隐藏重置按钮
+  document.getElementById('resetAnimBtn').style.display = reminderSettings.customAnimImg ? 'inline-block' : 'none';
+  document.getElementById('resetRingBtn').style.display = reminderSettings.customRingUrl ? 'inline-block' : 'none';
+}
+
+function hideSettings() {
+  document.getElementById('settingsOverlay').classList.remove('show');
+}
+
+function selectAnim(anim, el) {
+  reminderSettings.animation = anim;
+  saveReminderSettings();
+  document.querySelectorAll('#animGrid .anim-card').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  showToast('动画已切换：' + el.querySelector('small').textContent);
+  // 预览动画
+  previewAnim(anim);
+}
+
+function previewAnim(anim) {
+  const reminder = document.getElementById('animeReminder');
+  // 移除所有动画类
+  const animClasses = ['anim-bounce','anim-slide','anim-flip','anim-zoom','anim-shake','anim-spiral','anim-float','anim-pulse','anim-swing','anim-heart'];
+  animClasses.forEach(c => reminder.classList.remove(c));
+  reminder.classList.add('anim-' + anim);
+  // 短暂显示预览
+  reminder.classList.add('show');
+  setTimeout(() => {
+    if (!reminder._showing) reminder.classList.remove('show');
+  }, 2000);
+}
+
+function selectRingtone(ring, el) {
+  reminderSettings.ringtone = ring;
+  saveReminderSettings();
+  document.querySelectorAll('#ringtoneList .ringtone-card').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  showToast('铃声已切换：' + el.querySelector('small').textContent);
+  // 预览铃声
+  playRingtone(ring);
+}
+
+// 自定义动画图片上传
+async function uploadCustomAnimImg(input) {
+  const file = input.files[0];
+  if (!file) return;
+  
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('mediaType', 'custom_anim');
+  
+  try {
+    const res = await fetch(`${API_BASE}/api/upload`, { method: 'POST', body: formData });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    
+    reminderSettings.customAnimImg = data.url;
+    saveReminderSettings();
+    document.getElementById('resetAnimBtn').style.display = 'inline-block';
+    
+    // 预览
+    const reminder = document.getElementById('animeReminder');
+    reminder.classList.add('show');
+    applyCustomAnimImg();
+    showToast('自定义图片已上传！');
+    setTimeout(() => {
+      if (!reminder._showing) reminder.classList.remove('show');
+    }, 2000);
+  } catch(e) { showToast('上传失败：' + e.message); }
+}
+
+function resetAnimImg() {
+  reminderSettings.customAnimImg = null;
+  saveReminderSettings();
+  document.getElementById('resetAnimBtn').style.display = 'none';
+  document.getElementById('customAnimImgInput').value = '';
+  applyCustomAnimImg(); // 恢复默认 CSS 角色
+  showToast('已恢复默认动画角色');
+}
+
+function applyCustomAnimImg() {
+  const img = document.getElementById('customCharaImg');
+  const chara = document.getElementById('animeChara');
+  if (reminderSettings.customAnimImg) {
+    img.src = API_BASE + reminderSettings.customAnimImg;
+    img.style.display = 'block';
+    // 隐藏CSS角色
+    chara.querySelectorAll('.chara-ear,.chara-ear-inner,.chara-hair-back,.chara-arm,.chara-head,.chara-hair-bangs,.chara-hair-left,.chara-hair-right,.chara-collar,.chara-body,.chara-leg').forEach(el => el.style.display = 'none');
+  } else {
+    img.style.display = 'none';
+    img.src = '';
+    chara.querySelectorAll('div').forEach(el => el.style.display = '');
+  }
+}
+
+// 自定义铃声上传
+async function uploadCustomRing(input) {
+  const file = input.files[0];
+  if (!file) return;
+  
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('mediaType', 'custom_ring');
+  
+  try {
+    const res = await fetch(`${API_BASE}/api/upload`, { method: 'POST', body: formData });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    
+    reminderSettings.customRingUrl = data.url;
+    saveReminderSettings();
+    document.getElementById('resetRingBtn').style.display = 'inline-block';
+    showToast('自定义铃声已上传！');
+    
+    // 预览
+    const ringAudio = new Audio(API_BASE + data.url);
+    ringAudio.volume = 0.7;
+    ringAudio.play().catch(() => {});
+  } catch(e) { showToast('上传失败：' + e.message); }
+}
+
+function resetRingtone() {
+  reminderSettings.customRingUrl = null;
+  saveReminderSettings();
+  document.getElementById('resetRingBtn').style.display = 'none';
+  document.getElementById('customRingInput').value = '';
+  showToast('已恢复默认铃声');
+}
+
+// ===== 10种铃声 =====
+function playRingtone(name) {
+  try {
+    const melodies = {
+      chime: () => {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const notes = [523, 659, 784, 1047, 784, 659, 523];
+        notes.forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          const t = ctx.currentTime + i * 0.15;
+          gain.gain.setValueAtTime(0.25, t);
+          gain.gain.exponentialRampToValueAtTime(0.01, t + 0.25);
+          osc.start(t); osc.stop(t + 0.25);
+        });
+      },
+      bell: () => {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        [784, 988, 784, 659, 880, 784].forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.type = 'triangle';
+          osc.frequency.value = freq;
+          const t = ctx.currentTime + i * 0.2;
+          gain.gain.setValueAtTime(0.3, t);
+          gain.gain.exponentialRampToValueAtTime(0.01, t + 0.35);
+          osc.start(t); osc.stop(t + 0.35);
+        });
+      },
+      piano: () => {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        [262, 330, 392, 523, 392, 330, 262, 294, 349, 440, 523, 440, 349, 294].forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          const t = ctx.currentTime + i * 0.12;
+          gain.gain.setValueAtTime(0.2, t);
+          gain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+          osc.start(t); osc.stop(t + 0.2);
+        });
+      },
+      xylo: () => {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        [587, 698, 880, 1047, 1175, 1319, 1568].forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.type = 'square';
+          osc.frequency.value = freq;
+          const t = ctx.currentTime + i * 0.1;
+          gain.gain.setValueAtTime(0.08, t);
+          gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+          osc.start(t); osc.stop(t + 0.1);
+        });
+      },
+      musicbox: () => {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        [523, 659, 784, 1047, 1175, 1319, 1568, 1319, 1047, 784].forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          const t = ctx.currentTime + i * 0.13;
+          gain.gain.setValueAtTime(0.15, t);
+          gain.gain.exponentialRampToValueAtTime(0.01, t + 0.18);
+          osc.start(t); osc.stop(t + 0.18);
+        });
+      },
+      bird: () => {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        for (let i = 0; i < 6; i++) {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.type = 'sine';
+          const baseFreq = 1200 + Math.random() * 800;
+          osc.frequency.value = baseFreq;
+          const t = ctx.currentTime + i * 0.15;
+          osc.frequency.setValueAtTime(baseFreq, t);
+          osc.frequency.linearRampToValueAtTime(baseFreq + 300, t + 0.05);
+          osc.frequency.linearRampToValueAtTime(baseFreq, t + 0.1);
+          gain.gain.setValueAtTime(0.15, t);
+          gain.gain.exponentialRampToValueAtTime(0.01, t + 0.12);
+          osc.start(t); osc.stop(t + 0.12);
+        }
+      },
+      dingdong: () => {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        [784, 659, 523].forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.type = 'triangle';
+          osc.frequency.value = freq;
+          const t = ctx.currentTime + i * 0.3;
+          gain.gain.setValueAtTime(0.4, t);
+          gain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
+          osc.start(t); osc.stop(t + 0.4);
+        });
+      },
+      melody: () => {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        [392, 440, 494, 523, 587, 659, 698, 784, 880, 988, 1047].forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          const t = ctx.currentTime + i * 0.08;
+          gain.gain.setValueAtTime(0.2, t);
+          gain.gain.exponentialRampToValueAtTime(0.01, t + 0.12);
+          osc.start(t); osc.stop(t + 0.12);
+        });
+      },
+      kawaii: () => {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        [784, 988, 1319, 1568, 1319, 988, 784].forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          const t = ctx.currentTime + i * 0.1;
+          gain.gain.setValueAtTime(0.18, t);
+          gain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+          osc.start(t); osc.stop(t + 0.15);
+        });
+        // 添加第二个声部
+        setTimeout(() => {
+          [523, 659, 784, 988].forEach((freq, i) => {
+            const osc2 = ctx.createOscillator();
+            const gain2 = ctx.createGain();
+            osc2.connect(gain2); gain2.connect(ctx.destination);
+            osc2.type = 'triangle';
+            osc2.frequency.value = freq;
+            const t2 = ctx.currentTime + i * 0.1;
+            gain2.gain.setValueAtTime(0.1, t2);
+            gain2.gain.exponentialRampToValueAtTime(0.01, t2 + 0.12);
+            osc2.start(t2); osc2.stop(t2 + 0.12);
+          });
+        }, 500);
+      },
+      night: () => {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        [330, 392, 440, 494, 440, 392, 330, 294].forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          const t = ctx.currentTime + i * 0.3;
+          gain.gain.setValueAtTime(0.15, t);
+          gain.gain.exponentialRampToValueAtTime(0.01, t + 0.45);
+          osc.start(t); osc.stop(t + 0.45);
+        });
+      }
+    };
+    
+    if (melodies[name]) {
+      melodies[name]();
+    }
+  } catch(e) {}
+}
+
+let ringtoneAudio = null;
+function stopRingtone() {
+  if (ringtoneAudio) {
+    ringtoneAudio.pause();
+    ringtoneAudio.currentTime = 0;
+    ringtoneAudio = null;
+  }
+}
+
+function playReminderSound() {
+  stopRingtone();
+  
+  // 如果用户上传了自定义铃声，使用自定义铃声
+  if (reminderSettings.customRingUrl) {
+    try {
+      ringtoneAudio = new Audio(API_BASE + reminderSettings.customRingUrl);
+      ringtoneAudio.volume = 0.7;
+      ringtoneAudio.play().catch(() => {});
+      return;
+    } catch(e) {}
+  }
+  
+  // 否则使用选中的预设铃声
+  playRingtone(reminderSettings.ringtone);
+}
+
 function startReminderChecker() {
   if (reminderInterval) clearInterval(reminderInterval);
-  checkReminders(); // 立即检查一次
-  reminderInterval = setInterval(checkReminders, 30000); // 每30秒检查
+  checkReminders();
+  reminderInterval = setInterval(checkReminders, 30000);
 }
 
 function stopReminderChecker() {
@@ -631,7 +996,7 @@ function showAnimeReminder(event) {
 
   if (!reminder) return;
 
-  // 检查冷却期：如果在2分钟内被关闭过，不再弹出
+  // 检查冷却期
   if (reminder._dismissedUntil && Date.now() < reminder._dismissedUntil) return;
 
   // 设置事件信息
@@ -641,11 +1006,24 @@ function showAnimeReminder(event) {
 
   // 移除旧状态
   reminder.classList.remove('hiding');
+  
+  // 应用选中的动画风格
+  const animClasses = ['anim-bounce','anim-slide','anim-flip','anim-zoom','anim-shake','anim-spiral','anim-float','anim-pulse','anim-swing','anim-heart'];
+  animClasses.forEach(c => reminder.classList.remove(c));
+  reminder.classList.add('anim-' + reminderSettings.animation);
+  
+  // 应用自定义图片（如果有）
+  applyCustomAnimImg();
+  
+  // 爱心动画粒子
+  if (reminderSettings.animation === 'heart') {
+    spawnHeartParticles();
+  }
 
-  // 显示动漫角色
+  // 显示
+  reminder._showing = true;
   setTimeout(() => {
     reminder.classList.add('show');
-    // 播放可爱音效（可选）
     playReminderSound();
   }, 100);
 
@@ -655,7 +1033,7 @@ function showAnimeReminder(event) {
     dismissAnimeReminder();
   }, 15000);
 
-  // 尝试发送浏览器通知（当页面不在前台时）
+  // 浏览器通知
   if (document.hidden && 'Notification' in window) {
     if (Notification.permission === 'granted') {
       new Notification('⏰ 萌家日历提醒', {
@@ -672,40 +1050,42 @@ function dismissAnimeReminder() {
   const reminder = document.getElementById('animeReminder');
   if (!reminder) return;
 
+  stopRingtone();
   clearTimeout(reminder._autoHide);
-  // 设置2分钟冷却期，防止被立即重新弹出
   reminder._dismissedUntil = Date.now() + 120000;
+  reminder._showing = false;
   reminder.classList.add('hiding');
   reminder.classList.remove('show');
+  // 清除爱心粒子
+  document.getElementById('heartParticles').innerHTML = '';
 
-  // 等动画结束后重置
   setTimeout(() => {
     reminder.classList.remove('hiding');
   }, 700);
 }
 
-function playReminderSound() {
-  // 使用 Web Audio API 播放简单的可爱提示音
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const notes = [523.25, 659.25, 783.99]; // C5, E5, G5 - 可爱的三连音
-    const duration = 0.12;
-    const gap = 0.08;
-
-    notes.forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.3, ctx.currentTime + i * (duration + gap));
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + i * (duration + gap) + duration);
-      osc.start(ctx.currentTime + i * (duration + gap));
-      osc.stop(ctx.currentTime + i * (duration + gap) + duration);
-    });
-  } catch(e) { /* 忽略音频错误 */ }
+// 爱心粒子效果
+function spawnHeartParticles() {
+  const container = document.getElementById('heartParticles');
+  container.innerHTML = '';
+  const hearts = ['💕','💖','💗','💝','✨','🌸'];
+  for (let i = 0; i < 8; i++) {
+    const particle = document.createElement('span');
+    particle.style.cssText = `
+      position: absolute;
+      font-size: ${1 + Math.random() * 1.5}rem;
+      left: ${Math.random() * 100}%;
+      bottom: ${180 + Math.random() * 30}px;
+      animation: floatUp ${1 + Math.random() * 1.5}s ease-out ${i * 0.15}s both;
+      pointer-events: none;
+    `;
+    particle.textContent = hearts[Math.floor(Math.random() * hearts.length)];
+    container.appendChild(particle);
+  }
 }
+
+// 旧的 playReminderSound 已被上面的新版本替代
+// playReminderSound 现在在上面定义
 
 // 请求浏览器通知权限
 function requestNotificationPermission() {
