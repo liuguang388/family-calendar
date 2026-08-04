@@ -601,6 +601,386 @@
 
     /* 底部安全区域 */
     .safe-bottom { height: 80px; }
+
+    /* ===== 动漫角色提醒弹窗 ===== */
+    .anime-reminder {
+      position: fixed;
+      bottom: -400px;
+      right: 15px;
+      z-index: 9999;
+      transition: bottom 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      cursor: pointer;
+      user-select: none;
+    }
+    .anime-reminder.show {
+      bottom: 10px;
+    }
+
+    /* 气泡提示 */
+    .anime-bubble {
+      position: absolute;
+      bottom: 210px;
+      right: -15px;
+      background: linear-gradient(135deg, #ffffff, #FFF5F9);
+      border-radius: 22px;
+      padding: 16px 20px;
+      box-shadow: 0 10px 40px rgba(255, 143, 171, 0.35);
+      min-width: 220px;
+      max-width: 260px;
+      animation: bubblePop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.2s both;
+      border: 3px solid #FFC2D1;
+      position: relative;
+    }
+    .anime-bubble::after {
+      content: '';
+      position: absolute;
+      bottom: -14px;
+      right: 45px;
+      width: 0; height: 0;
+      border-left: 14px solid transparent;
+      border-right: 14px solid transparent;
+      border-top: 16px solid #FFC2D1;
+    }
+    .anime-bubble::before {
+      content: '';
+      position: absolute;
+      bottom: -9px;
+      right: 49px;
+      width: 0; height: 0;
+      border-left: 10px solid transparent;
+      border-right: 10px solid transparent;
+      border-top: 12px solid #FFF5F9;
+      z-index: 2;
+    }
+    .anime-bubble-title {
+      font-size: 0.9rem;
+      font-weight: 800;
+      color: #FF8FAB;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .anime-bubble-event {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #5D4E6D;
+      margin-bottom: 4px;
+    }
+    .anime-bubble-time {
+      font-size: 0.8rem;
+      color: #8B7B9E;
+    }
+    .anime-bubble-close {
+      position: absolute;
+      top: 8px;
+      right: 12px;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: none;
+      background: #FFD5E0;
+      color: #FF8FAB;
+      font-size: 0.75rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s;
+    }
+    .anime-bubble-close:hover {
+      background: #FF8FAB;
+      color: white;
+      transform: rotate(90deg);
+    }
+
+    @keyframes bubblePop {
+      0% { transform: scale(0) translateY(20px); opacity: 0; }
+      100% { transform: scale(1) translateY(0); opacity: 1; }
+    }
+
+    @keyframes characterBounce {
+      0%, 100% { transform: translateY(0); }
+      30% { transform: translateY(-8px) rotate(-3deg); }
+      60% { transform: translateY(-2px) rotate(2deg); }
+      80% { transform: translateY(-5px) rotate(-1deg); }
+    }
+
+    /* 动漫角色容器 */
+    .anime-chara {
+      width: 130px;
+      height: 190px;
+      position: relative;
+      animation: characterBounce 3s ease-in-out infinite;
+    }
+
+    /* 头发 */
+    .chara-hair-back {
+      position: absolute;
+      top: -4px;
+      left: 22px;
+      width: 86px;
+      height: 40px;
+      background: linear-gradient(180deg, #FF7EB3 0%, #FF8FAB 100%);
+      border-radius: 43px 43px 0 0;
+      z-index: 1;
+    }
+    .chara-hair-bangs {
+      position: absolute;
+      top: 6px;
+      left: 30px;
+      width: 70px;
+      height: 30px;
+      background: linear-gradient(180deg, #FF7EB3, #FF9DB5);
+      border-radius: 0 0 28px 28px;
+      z-index: 8;
+      clip-path: polygon(0% 0%, 15% 55%, 30% 20%, 50% 60%, 70% 25%, 85% 55%, 100% 0%);
+    }
+    .chara-hair-sides {
+      position: absolute;
+      z-index: 3;
+    }
+    .chara-hair-left {
+      position: absolute;
+      top: 20px;
+      left: 15px;
+      width: 18px;
+      height: 45px;
+      background: #FF7EB3;
+      border-radius: 0 0 14px 14px;
+      z-index: 3;
+    }
+    .chara-hair-right {
+      position: absolute;
+      top: 20px;
+      right: 15px;
+      width: 18px;
+      height: 45px;
+      background: #FF7EB3;
+      border-radius: 0 0 14px 14px;
+      z-index: 3;
+    }
+    /* 猫耳 */
+    .chara-ear {
+      position: absolute;
+      z-index: 2;
+    }
+    .chara-ear::before,
+    .chara-ear::after {
+      content: '';
+      position: absolute;
+      top: -12px;
+      width: 0;
+      height: 0;
+      border-bottom: 26px solid #FF7EB3;
+      border-left: 12px solid transparent;
+      border-right: 12px solid transparent;
+    }
+    .chara-ear::before {
+      left: 18px;
+      transform: rotate(-15deg);
+    }
+    .chara-ear::after {
+      right: 56px;
+      transform: rotate(15deg);
+    }
+    .chara-ear-inner::before,
+    .chara-ear-inner::after {
+      content: '';
+      position: absolute;
+      top: -7px;
+      width: 0;
+      height: 0;
+      border-bottom: 18px solid #FFD0DF;
+      border-left: 8px solid transparent;
+      border-right: 8px solid transparent;
+      z-index: 3;
+    }
+    .chara-ear-inner::before {
+      left: 22px;
+      transform: rotate(-15deg);
+    }
+    .chara-ear-inner::after {
+      right: 60px;
+      transform: rotate(15deg);
+    }
+
+    /* 头部 */
+    .chara-head {
+      width: 74px;
+      height: 80px;
+      background: linear-gradient(180deg, #FFECD2, #FFDCC2);
+      border-radius: 50%;
+      position: absolute;
+      top: 25px;
+      left: 28px;
+      z-index: 5;
+    }
+    /* 眼睛 */
+    .chara-eye {
+      position: absolute;
+      width: 20px;
+      height: 24px;
+      background: white;
+      border-radius: 50%;
+      top: 18px;
+      z-index: 6;
+      overflow: hidden;
+    }
+    .chara-eye.left { left: 12px; }
+    .chara-eye.right { right: 12px; }
+    .chara-pupil {
+      position: absolute;
+      width: 11px;
+      height: 14px;
+      background: #2C1810;
+      border-radius: 50%;
+      top: 5px;
+      left: 5px;
+    }
+    .chara-sparkle {
+      position: absolute;
+      width: 4px;
+      height: 5px;
+      background: white;
+      border-radius: 50%;
+      top: 2px;
+      left: 3px;
+    }
+    .chara-sparkle2 {
+      position: absolute;
+      width: 2px;
+      height: 2px;
+      background: white;
+      border-radius: 50%;
+      bottom: 4px;
+      right: 4px;
+    }
+    /* 眉毛 */
+    .chara-brow {
+      position: absolute;
+      width: 16px;
+      height: 3px;
+      background: #7B5B4C;
+      border-radius: 2px;
+      top: 12px;
+      z-index: 7;
+    }
+    .chara-brow.left { left: 12px; }
+    .chara-brow.right { right: 12px; }
+    /* 腮红 */
+    .chara-blush {
+      position: absolute;
+      width: 14px;
+      height: 9px;
+      background: rgba(255, 143, 171, 0.5);
+      border-radius: 50%;
+      top: 32px;
+      z-index: 6;
+    }
+    .chara-blush.left { left: 6px; }
+    .chara-blush.right { right: 6px; }
+    /* 嘴巴 */
+    .chara-mouth {
+      position: absolute;
+      width: 14px;
+      height: 8px;
+      border-bottom: 3px solid #E8807A;
+      border-radius: 0 0 14px 14px;
+      bottom: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 7;
+    }
+
+    /* 身体 */
+    .chara-body {
+      position: absolute;
+      top: 98px;
+      left: 38px;
+      width: 54px;
+      height: 55px;
+      background: linear-gradient(180deg, #FF8FAB, #FFB3C6);
+      border-radius: 18px 18px 22px 22px;
+      z-index: 4;
+    }
+    /* 衣领 */
+    .chara-collar {
+      position: absolute;
+      top: 95px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 40px;
+      height: 12px;
+      background: white;
+      border-radius: 8px;
+      z-index: 6;
+    }
+    /* 手臂 */
+    .chara-arm {
+      position: absolute;
+      width: 14px;
+      height: 35px;
+      background: linear-gradient(180deg, #FFECD2, #FFDCC2);
+      border-radius: 7px;
+      top: 100px;
+      z-index: 3;
+    }
+    .chara-arm.left { left: 22px; transform: rotate(15deg); }
+    .chara-arm.right { right: 22px; transform: rotate(-15deg); }
+    /* 小短腿 */
+    .chara-leg {
+      position: absolute;
+      width: 16px;
+      height: 22px;
+      background: linear-gradient(180deg, #FFECD2, #FFDCC2);
+      border-radius: 0 0 8px 8px;
+      top: 150px;
+      z-index: 3;
+    }
+    .chara-leg.left { left: 42px; }
+    .chara-leg.right { right: 42px; }
+    /* 鞋子 */
+    .chara-shoe {
+      position: absolute;
+      width: 20px;
+      height: 12px;
+      background: #7B5B4C;
+      border-radius: 4px 10px 8px 4px;
+      top: 168px;
+      z-index: 3;
+    }
+    .chara-shoe.left { left: 38px; }
+    .chara-shoe.right { right: 38px; transform: rotate(5deg); }
+
+    /* 挥手动画 */
+    .anime-reminder .chara-arm.right {
+      animation: wave 0.8s ease-in-out infinite;
+      transform-origin: top center;
+    }
+    @keyframes wave {
+      0%, 100% { transform: rotate(-15deg); }
+      50% { transform: rotate(-45deg) translateY(-4px); }
+    }
+
+    /* 退出动画 */
+    .anime-reminder.hiding {
+      bottom: -400px !important;
+    }
+
+    /* 响应式：手机端 */
+    @media (max-width: 400px) {
+      .anime-reminder {
+        right: 5px;
+        transform: scale(0.8);
+        transform-origin: bottom right;
+      }
+      .anime-bubble {
+        right: -30px;
+        min-width: 180px;
+        max-width: 220px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -741,6 +1121,43 @@
       <button class="btn btn-primary" onclick="saveEvent()" style="margin-top:20px;">保存事件</button>
     </div>
     <div class="safe-bottom"></div>
+  </div>
+
+  <!-- 动漫角色提醒弹窗 -->
+  <div class="anime-reminder" id="animeReminder" onclick="dismissAnimeReminder()">
+    <div class="anime-bubble" id="animeBubble">
+      <button class="anime-bubble-close" onclick="event.stopPropagation(); dismissAnimeReminder()">✕</button>
+      <div class="anime-bubble-title">⏰ 提醒来啦！</div>
+      <div class="anime-bubble-event" id="animeEventTitle">事件名称</div>
+      <div class="anime-bubble-time" id="animeEventTime">14:30</div>
+    </div>
+    <div class="anime-chara">
+      <div class="chara-ear"></div>
+      <div class="chara-ear-inner"></div>
+      <div class="chara-hair-back"></div>
+      <div class="chara-arm left"></div>
+      <div class="chara-arm right"></div>
+      <div class="chara-head">
+        <div class="chara-brow left"></div>
+        <div class="chara-brow right"></div>
+        <div class="chara-eye left">
+          <div class="chara-pupil"><div class="chara-sparkle"></div><div class="chara-sparkle2"></div></div>
+        </div>
+        <div class="chara-eye right">
+          <div class="chara-pupil"><div class="chara-sparkle"></div><div class="chara-sparkle2"></div></div>
+        </div>
+        <div class="chara-blush left"></div>
+        <div class="chara-blush right"></div>
+        <div class="chara-mouth"></div>
+      </div>
+      <div class="chara-hair-bangs"></div>
+      <div class="chara-hair-left"></div>
+      <div class="chara-hair-right"></div>
+      <div class="chara-collar"></div>
+      <div class="chara-body"></div>
+      <div class="chara-leg left"><div class="chara-shoe left"></div></div>
+      <div class="chara-leg right"><div class="chara-shoe right"></div></div>
+    </div>
   </div>
 
   <script src="app.js"></script>

@@ -10,6 +10,8 @@ let mediaRecorder = null;
 let recordedChunks = [];
 let isRecording = false;
 let eventsCache = {};
+let remindedEvents = {}; // 记录已提醒的事件，避免重复提醒
+let reminderInterval = null;
 
 // 可爱emoji集合
 const cuteEmojis = ['🐰','🌸','🎀','🌟','☁️','🍓','🧸','🎈','💖','✨','🌈','🍰','🎵','🦊','🐱','🐶'];
@@ -126,6 +128,7 @@ async function createFamily() {
 }
 
 function logout() {
+  stopReminderChecker();
   currentFamily = null;
   localStorage.removeItem('familySession');
   document.getElementById('loginName').value = '';
@@ -139,6 +142,9 @@ function showCalendar() {
   document.getElementById('familyBadge').textContent = '🏠 ' + currentFamily.name;
   renderCalendar();
   showPage('pageCalendar');
+  // 启动提醒检查和通知权限
+  startReminderChecker();
+  requestNotificationPermission();
 }
 
 function changeMonth(delta) {
@@ -520,6 +526,149 @@ async function deleteEvent(id, deleteAll) {
     if (selectedDate) showDay(selectedDate);
     else renderCalendar();
   } catch(e) { showToast(e.message); }
+}
+
+// ===== 动漫角色提醒系统 =====
+function startReminderChecker() {
+  if (reminderInterval) clearInterval(reminderInterval);
+  checkReminders(); // 立即检查一次
+  reminderInterval = setInterval(checkReminders, 30000); // 每30秒检查
+}
+
+function stopReminderChecker() {
+  if (reminderInterval) {
+    clearInterval(reminderInterval);
+    reminderInterval = null;
+  }
+}
+
+async function checkReminders() {
+  if (!currentFamily) return;
+
+  const today = getTodayStr();
+  const now = new Date();
+  const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/events/day/${currentFamily.id}/${today}`);
+    const events = await res.json();
+
+    events.forEach(event => {
+      // 只提醒活跃的、有时间的、未完成的事件
+      if (event.status !== 'active') return;
+      if (!event.event_time || event.event_time === '00:00') return;
+
+      const eventTime = event.event_time.slice(0, 5); // HH:MM
+      const eventId = event.id;
+
+      // 计算时间差（分钟）
+      const [h1, m1] = currentTime.split(':').map(Number);
+      const [h2, m2] = eventTime.split(':').map(Number);
+      const diffMin = (h1 * 60 + m1) - (h2 * 60 + m2);
+
+      // 在事件时间的前后1分钟内触发提醒
+      if (diffMin >= -1 && diffMin <= 1) {
+        // 检查是否已经提醒过（防止重复）
+        const reminderKey = `${today}_${eventTime}_${event.title}`;
+        if (!remindedEvents[reminderKey]) {
+          remindedEvents[reminderKey] = true;
+          showAnimeReminder(event);
+        }
+      }
+    });
+
+    // 清理过期的提醒记录（每天重置）
+    if (!remindedEvents._date || remindedEvents._date !== today) {
+      remindedEvents = { _date: today };
+    }
+  } catch (e) {
+    console.error('检查提醒失败:', e);
+  }
+}
+
+function showAnimeReminder(event) {
+  const reminder = document.getElementById('animeReminder');
+  const titleEl = document.getElementById('animeEventTitle');
+  const timeEl = document.getElementById('animeEventTime');
+
+  if (!reminder) return;
+
+  // 设置事件信息
+  titleEl.textContent = event.title;
+  const timeStr = event.event_time ? event.event_time.slice(0, 5) : '';
+  timeEl.textContent = '🕐 ' + timeStr;
+
+  // 移除旧状态
+  reminder.classList.remove('hiding');
+
+  // 显示动漫角色
+  setTimeout(() => {
+    reminder.classList.add('show');
+    // 播放可爱音效（可选）
+    playReminderSound();
+  }, 100);
+
+  // 15秒后自动隐藏
+  clearTimeout(reminder._autoHide);
+  reminder._autoHide = setTimeout(() => {
+    dismissAnimeReminder();
+  }, 15000);
+
+  // 尝试发送浏览器通知（当页面不在前台时）
+  if (document.hidden && 'Notification' in window) {
+    if (Notification.permission === 'granted') {
+      new Notification('⏰ 萌家日历提醒', {
+        body: `${event.title}\n时间：${timeStr}`,
+        icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🐰</text></svg>',
+        tag: `reminder-${event.id}`,
+        requireInteraction: false
+      });
+    }
+  }
+}
+
+function dismissAnimeReminder() {
+  const reminder = document.getElementById('animeReminder');
+  if (!reminder) return;
+
+  clearTimeout(reminder._autoHide);
+  reminder.classList.add('hiding');
+  reminder.classList.remove('show');
+
+  // 等动画结束后重置
+  setTimeout(() => {
+    reminder.classList.remove('hiding');
+  }, 700);
+}
+
+function playReminderSound() {
+  // 使用 Web Audio API 播放简单的可爱提示音
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const notes = [523.25, 659.25, 783.99]; // C5, E5, G5 - 可爱的三连音
+    const duration = 0.12;
+    const gap = 0.08;
+
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.3, ctx.currentTime + i * (duration + gap));
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + i * (duration + gap) + duration);
+      osc.start(ctx.currentTime + i * (duration + gap));
+      osc.stop(ctx.currentTime + i * (duration + gap) + duration);
+    });
+  } catch(e) { /* 忽略音频错误 */ }
+}
+
+// 请求浏览器通知权限
+function requestNotificationPermission() {
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
 }
 
 // ===== 工具 =====
