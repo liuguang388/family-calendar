@@ -631,6 +631,9 @@ function showAnimeReminder(event) {
 
   if (!reminder) return;
 
+  // 检查冷却期：如果在2分钟内被关闭过，不再弹出
+  if (reminder._dismissedUntil && Date.now() < reminder._dismissedUntil) return;
+
   // 设置事件信息
   titleEl.textContent = event.title;
   const timeStr = event.event_time ? event.event_time.slice(0, 5) : '';
@@ -670,6 +673,8 @@ function dismissAnimeReminder() {
   if (!reminder) return;
 
   clearTimeout(reminder._autoHide);
+  // 设置2分钟冷却期，防止被立即重新弹出
+  reminder._dismissedUntil = Date.now() + 120000;
   reminder.classList.add('hiding');
   reminder.classList.remove('show');
 
