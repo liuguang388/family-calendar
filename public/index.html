@@ -1004,6 +1004,7 @@
         </div>
         <button class="btn btn-primary" onclick="login()">进入家庭</button>
         <button class="btn btn-secondary" onclick="toggleCreate()">创建新家庭</button>
+        <a href="javascript:void(0)" onclick="toggleRecover()" style="display:block; text-align:center; color:var(--primary); font-size:0.85rem; margin-top:8px; text-decoration:none;">忘记密码？</a>
       </div>
       <div id="createForm" style="display:none;">
         <div class="input-group">
@@ -1014,8 +1015,25 @@
           <label>设置密码</label>
           <input type="password" id="createPassword" placeholder="家庭成员共享的密码">
         </div>
+        <div class="input-group">
+          <label>绑定邮箱（用于找回密码）</label>
+          <input type="email" id="createEmail" placeholder="例如：family@example.com">
+        </div>
         <button class="btn btn-primary" onclick="createFamily()">创建家庭</button>
         <button class="btn btn-secondary" onclick="toggleCreate()">已有家庭？登录</button>
+      </div>
+      <div id="recoverForm" style="display:none;">
+        <p style="color:var(--text-light); font-size:0.9rem; margin-bottom:20px;">输入创建家庭时绑定的名称和邮箱来找回密码</p>
+        <div class="input-group">
+          <label>家庭名称</label>
+          <input type="text" id="recoverName" placeholder="输入家庭名称">
+        </div>
+        <div class="input-group">
+          <label>绑定邮箱</label>
+          <input type="email" id="recoverEmail" placeholder="输入注册时的邮箱">
+        </div>
+        <button class="btn btn-primary" onclick="recoverPassword()">找回密码</button>
+        <button class="btn btn-secondary" onclick="toggleRecover()">返回登录</button>
       </div>
     </div>
   </div>
@@ -1051,9 +1069,10 @@
       <h1 id="dayTitle">1月1日</h1>
       <p id="daySubtitle">星期一无安排</p>
     </div>
+    <button class="btn btn-primary" id="dayAddBtn" onclick="showAddEvent()" style="width:100%; margin-bottom:16px; border-radius:18px; animation:slideUp 0.4s ease-out;">
+      ✨ 添加新事件
+    </button>
     <div class="event-list" id="eventList"></div>
-    <div class="safe-bottom"></div>
-    <button class="fab" id="dayFab" onclick="showAddEvent()">+</button>
   </div>
 
   <!-- 添加事件页 -->

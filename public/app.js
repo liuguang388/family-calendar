@@ -81,12 +81,15 @@ function showPage(id) {
 function toggleCreate() {
   const login = document.getElementById('loginForm');
   const create = document.getElementById('createForm');
+  const recover = document.getElementById('recoverForm');
   if (login.style.display === 'none') {
     login.style.display = 'block';
     create.style.display = 'none';
+    recover.style.display = 'none';
   } else {
     login.style.display = 'none';
     create.style.display = 'block';
+    recover.style.display = 'none';
   }
 }
 
@@ -111,12 +114,13 @@ async function login() {
 async function createFamily() {
   const name = document.getElementById('createName').value.trim();
   const password = document.getElementById('createPassword').value;
+  const email = document.getElementById('createEmail').value.trim();
   if (!name || !password) return showToast('请填写完整信息');
   if (password.length < 4) return showToast('密码至少4位');
   try {
     const res = await fetch(`${API_BASE}/api/family/create`, {
       method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({name, password})
+      body: JSON.stringify({name, password, email})
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
@@ -124,6 +128,40 @@ async function createFamily() {
     localStorage.setItem('familySession', JSON.stringify(currentFamily));
     showToast('家庭创建成功！🎉');
     showCalendar();
+  } catch(e) { showToast(e.message); }
+}
+
+function toggleRecover() {
+  const login = document.getElementById('loginForm');
+  const create = document.getElementById('createForm');
+  const recover = document.getElementById('recoverForm');
+  if (recover.style.display === 'none') {
+    login.style.display = 'none';
+    create.style.display = 'none';
+    recover.style.display = 'block';
+  } else {
+    login.style.display = 'block';
+    create.style.display = 'none';
+    recover.style.display = 'none';
+  }
+}
+
+async function recoverPassword() {
+  const name = document.getElementById('recoverName').value.trim();
+  const email = document.getElementById('recoverEmail').value.trim();
+  if (!name || !email) return showToast('请填写家庭名称和邮箱');
+  try {
+    const res = await fetch(`${API_BASE}/api/family/recover`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({name, email})
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    // 找回成功后回填到登录表单并切换回登录页
+    document.getElementById('loginName').value = name;
+    document.getElementById('loginPassword').value = data.password;
+    toggleRecover();
+    showToast(`密码已找回：${data.password}，请点击登录`);
   } catch(e) { showToast(e.message); }
 }
 
@@ -249,7 +287,7 @@ async function showDay(dateStr) {
   document.getElementById('heroEmoji').textContent = heroEmojis[Math.floor(Math.random()*heroEmojis.length)];
 
   // 过去日期隐藏添加按钮
-  document.getElementById('dayFab').style.display = isPast ? 'none' : 'flex';
+  document.getElementById('dayAddBtn').style.display = isPast ? 'none' : 'block';
 
   renderEventList(events, isPast);
   showPage('pageDay');

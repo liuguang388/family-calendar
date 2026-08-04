@@ -36,8 +36,12 @@ db.serialize(() => {
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     password TEXT NOT NULL,
+    email TEXT DEFAULT '',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
+
+  // 兼容旧表：添加 email 列
+  db.run(`ALTER TABLE families ADD COLUMN email TEXT DEFAULT ''`, () => {});
 
   db.run(`CREATE TABLE IF NOT EXISTS events (
     id TEXT PRIMARY KEY,
@@ -85,12 +89,12 @@ const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 } });
 
 // 创建家庭
 app.post('/api/family/create', (req, res) => {
-  const { name, password } = req.body;
+  const { name, password, email } = req.body;
   if (!name || !password) return res.status(400).json({ error: '需要家庭名称和密码' });
   
   const id = uuidv4();
-  db.run('INSERT INTO families (id, name, password) VALUES (?, ?, ?)', 
-    [id, name, password], function(err) {
+  db.run('INSERT INTO families (id, name, password, email) VALUES (?, ?, ?, ?)', 
+    [id, name, password, email || ''], function(err) {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ id, name, message: '家庭创建成功' });
   });
@@ -103,6 +107,18 @@ app.post('/api/family/login', (req, res) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!row) return res.status(401).json({ error: '家庭名称或密码错误' });
     res.json({ id: row.id, name: row.name });
+  });
+});
+
+// 找回密码（通过家庭名称和邮箱）
+app.post('/api/family/recover', (req, res) => {
+  const { name, email } = req.body;
+  if (!name || !email) return res.status(400).json({ error: '请提供家庭名称和注册邮箱' });
+  
+  db.get('SELECT * FROM families WHERE name = ? AND email = ?', [name, email], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: '未找到匹配的家庭，请检查名称和邮箱是否正确' });
+    res.json({ password: row.password, message: '密码已找回' });
   });
 });
 
