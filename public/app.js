@@ -43,6 +43,20 @@ function getDailyTheme(dateStr) {
 // ===== 初始化 =====
 document.addEventListener('DOMContentLoaded', () => {
   initBackground();
+  
+  // 在用户首次交互时激活 AudioContext（解决移动端自动播放限制）
+  const unlockAudio = async () => {
+    await initAudioCtx();
+    if (audioCtxReady) {
+      document.removeEventListener('click', unlockAudio);
+      document.removeEventListener('touchstart', unlockAudio);
+      document.removeEventListener('touchend', unlockAudio);
+    }
+  };
+  document.addEventListener('click', unlockAudio);
+  document.addEventListener('touchstart', unlockAudio, {passive: true});
+  document.addEventListener('touchend', unlockAudio, {passive: true});
+  
   const saved = localStorage.getItem('familySession');
   if (saved) {
     try {
@@ -566,6 +580,43 @@ async function deleteEvent(id, deleteAll) {
   } catch(e) { showToast(e.message); }
 }
 
+// ===== 共享音频上下文（解决移动端自动播放限制） =====
+let sharedAudioCtx = null;
+let audioCtxReady = false;
+
+// 初始化/恢复共享 AudioContext（必须在用户交互回调中调用）
+async function initAudioCtx() {
+  if (!sharedAudioCtx) {
+    sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (sharedAudioCtx.state === 'suspended') {
+    try {
+      await sharedAudioCtx.resume();
+    } catch(e) {}
+  }
+  audioCtxReady = sharedAudioCtx.state === 'running';
+  return audioCtxReady;
+}
+
+// 解码音频文件为 AudioBuffer（用于自定义铃声）
+let customRingBuffer = null;
+let customRingBufferUrl = null;
+
+async function decodeCustomRing(url) {
+  if (customRingBufferUrl === url && customRingBuffer) return customRingBuffer;
+  try {
+    if (!audioCtxReady) await initAudioCtx();
+    const response = await fetch(url);
+    const arrayBuffer = await response.arrayBuffer();
+    customRingBuffer = await sharedAudioCtx.decodeAudioData(arrayBuffer);
+    customRingBufferUrl = url;
+    return customRingBuffer;
+  } catch(e) {
+    console.error('解码自定义铃声失败:', e);
+    return null;
+  }
+}
+
 // ===== 动漫角色提醒系统 =====
 // 提醒设置（默认值）
 let reminderSettings = {
@@ -720,10 +771,18 @@ async function uploadCustomRing(input) {
     document.getElementById('resetRingBtn').style.display = 'inline-block';
     showToast('自定义铃声已上传！');
     
-    // 预览
-    const ringAudio = new Audio(API_BASE + data.url);
-    ringAudio.volume = 0.7;
-    ringAudio.play().catch(() => {});
+    // 用 AudioContext 预览
+    decodeCustomRing(API_BASE + data.url).then(buffer => {
+      if (buffer && sharedAudioCtx) {
+        const source = sharedAudioCtx.createBufferSource();
+        const gain = sharedAudioCtx.createGain();
+        source.buffer = buffer;
+        source.connect(gain);
+        gain.connect(sharedAudioCtx.destination);
+        gain.gain.value = 0.7;
+        source.start(0);
+      }
+    });
   } catch(e) { showToast('上传失败：' + e.message); }
 }
 
@@ -735,12 +794,14 @@ function resetRingtone() {
   showToast('已恢复默认铃声');
 }
 
-// ===== 10种铃声 =====
+// ===== 10种铃声（使用共享 AudioContext，兼容移动端） =====
 function playRingtone(name) {
+  if (!audioCtxReady || !sharedAudioCtx) return;
+  const ctx = sharedAudioCtx;
+  
   try {
     const melodies = {
       chime: () => {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
         const notes = [523, 659, 784, 1047, 784, 659, 523];
         notes.forEach((freq, i) => {
           const osc = ctx.createOscillator();
@@ -755,7 +816,6 @@ function playRingtone(name) {
         });
       },
       bell: () => {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
         [784, 988, 784, 659, 880, 784].forEach((freq, i) => {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
@@ -769,7 +829,6 @@ function playRingtone(name) {
         });
       },
       piano: () => {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
         [262, 330, 392, 523, 392, 330, 262, 294, 349, 440, 523, 440, 349, 294].forEach((freq, i) => {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
@@ -783,7 +842,6 @@ function playRingtone(name) {
         });
       },
       xylo: () => {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
         [587, 698, 880, 1047, 1175, 1319, 1568].forEach((freq, i) => {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
@@ -797,7 +855,6 @@ function playRingtone(name) {
         });
       },
       musicbox: () => {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
         [523, 659, 784, 1047, 1175, 1319, 1568, 1319, 1047, 784].forEach((freq, i) => {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
@@ -811,7 +868,6 @@ function playRingtone(name) {
         });
       },
       bird: () => {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
         for (let i = 0; i < 6; i++) {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
@@ -829,7 +885,6 @@ function playRingtone(name) {
         }
       },
       dingdong: () => {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
         [784, 659, 523].forEach((freq, i) => {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
@@ -843,7 +898,6 @@ function playRingtone(name) {
         });
       },
       melody: () => {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
         [392, 440, 494, 523, 587, 659, 698, 784, 880, 988, 1047].forEach((freq, i) => {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
@@ -857,7 +911,6 @@ function playRingtone(name) {
         });
       },
       kawaii: () => {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
         [784, 988, 1319, 1568, 1319, 988, 784].forEach((freq, i) => {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
@@ -885,7 +938,6 @@ function playRingtone(name) {
         }, 500);
       },
       night: () => {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
         [330, 392, 440, 494, 440, 392, 330, 294].forEach((freq, i) => {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
@@ -906,26 +958,50 @@ function playRingtone(name) {
   } catch(e) {}
 }
 
-let ringtoneAudio = null;
+let ringtoneSourceNodes = []; // 跟踪所有活跃的音频源节点，用于停止
+
 function stopRingtone() {
-  if (ringtoneAudio) {
-    ringtoneAudio.pause();
-    ringtoneAudio.currentTime = 0;
-    ringtoneAudio = null;
+  // 停止所有活跃的 oscillator/buffer source
+  ringtoneSourceNodes.forEach(node => {
+    try { node.stop(); } catch(e) {}
+  });
+  ringtoneSourceNodes = [];
+  
+  // 同时重置 buffer 播放的标记
+  if (sharedAudioCtx && sharedAudioCtx._ringBufferSource) {
+    try { sharedAudioCtx._ringBufferSource.stop(); } catch(e) {}
+    sharedAudioCtx._ringBufferSource = null;
   }
 }
 
-function playReminderSound() {
+async function playReminderSound() {
+  // 确保 AudioContext 已准备好
+  if (!audioCtxReady || !sharedAudioCtx) {
+    // 如果还没初始化，尝试初始化
+    const ready = await initAudioCtx();
+    if (!ready) return;
+  }
+  
   stopRingtone();
   
-  // 如果用户上传了自定义铃声，使用自定义铃声
+  // 如果用户上传了自定义铃声，使用 AudioContext 播放解码后的 buffer
   if (reminderSettings.customRingUrl) {
     try {
-      ringtoneAudio = new Audio(API_BASE + reminderSettings.customRingUrl);
-      ringtoneAudio.volume = 0.7;
-      ringtoneAudio.play().catch(() => {});
-      return;
-    } catch(e) {}
+      const buffer = await decodeCustomRing(API_BASE + reminderSettings.customRingUrl);
+      if (buffer && sharedAudioCtx) {
+        const source = sharedAudioCtx.createBufferSource();
+        const gainNode = sharedAudioCtx.createGain();
+        source.buffer = buffer;
+        source.connect(gainNode);
+        gainNode.connect(sharedAudioCtx.destination);
+        gainNode.gain.value = 0.7;
+        source.start(0);
+        sharedAudioCtx._ringBufferSource = source;
+        return;
+      }
+    } catch(e) {
+      console.error('自定义铃声播放失败:', e);
+    }
   }
   
   // 否则使用选中的预设铃声
